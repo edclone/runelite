@@ -388,12 +388,13 @@ public class MapImageDumper
 			}
 		}
 	}
-
-	private void drawMap(int[][] pixels, Region region, int z)
-	{
+		/*
+		Refactored a complex method and a long parameter list from this method. I did this by splitting up the
+		draw map into a few smaller methods. originally drawMap was 186 lines long and had a cyclomatic complexity of 35.
+		 */
+	private void drawMap(int[][] pixels, Region region, int z) {
 		int baseX = region.getBaseX();
 		int baseY = region.getBaseY();
-
 		int len = Region.X + BLEND * 2;
 		int[] hues = new int[len];
 		int[] sats = new int[len];
@@ -401,243 +402,193 @@ public class MapImageDumper
 		int[] mul = new int[len];
 		int[] num = new int[len];
 
-		boolean hasLeftRegion = regionLoader.findRegionForWorldCoordinates(baseX - 1, baseY) != null;
-		boolean hasRightRegion = regionLoader.findRegionForWorldCoordinates(baseX + Region.X, baseY) != null;
-		boolean hasUpRegion = regionLoader.findRegionForWorldCoordinates(baseX, baseY + Region.Y) != null;
-		boolean hasDownRegion = regionLoader.findRegionForWorldCoordinates(baseX, baseY - 1) != null;
+		boolean[] regionPresence = getAdjacentRegionsPresence(baseX, baseY);
 
-		for (int xi = (hasLeftRegion ? -BLEND * 2 : -BLEND); xi < Region.X + (hasRightRegion ? BLEND * 2 : BLEND); ++xi)
-		{
-			for (int yi = (hasDownRegion ? -BLEND : 0); yi < Region.Y + (hasUpRegion ? BLEND : 0); ++yi)
-			{
-				int xr = xi + BLEND;
-				if (xr >= (hasLeftRegion ? -BLEND : 0) && xr < Region.X + (hasRightRegion ? BLEND : 0))
-				{
-					Region r = regionLoader.findRegionForWorldCoordinates(baseX + xr, baseY + yi);
-					if (r != null)
-					{
-						int underlayId = r.getUnderlayId(z, convert(xr), convert(yi));
-						if (underlayId > 0)
-						{
-							UnderlayDefinition underlay = findUnderlay(underlayId - 1);
-							hues[yi + BLEND] += underlay.getHue();
-							sats[yi + BLEND] += underlay.getSaturation();
-							light[yi + BLEND] += underlay.getLightness();
-							mul[yi + BLEND] += underlay.getHueMultiplier();
-							num[yi + BLEND]++;
-						}
-					}
-				}
+		for (int xi = getStartX(regionPresence[0]); xi < getEndX(regionPresence[1]); ++xi) {
+			processRegionX(pixels, baseX, baseY, z, xi, regionPresence, hues, sats, light, mul, num);
+		}
+	}
 
-				int xl = xi - BLEND;
-				if (xl >= (hasLeftRegion ? -BLEND : 0) && xl < Region.X + (hasRightRegion ? BLEND : 0))
-				{
-					Region r = regionLoader.findRegionForWorldCoordinates(baseX + xl, baseY + yi);
-					if (r != null)
-					{
-						int underlayId = r.getUnderlayId(z, convert(xl), convert(yi));
-						if (underlayId > 0)
-						{
-							UnderlayDefinition underlay = findUnderlay(underlayId - 1);
-							hues[yi + BLEND] -= underlay.getHue();
-							sats[yi + BLEND] -= underlay.getSaturation();
-							light[yi + BLEND] -= underlay.getLightness();
-							mul[yi + BLEND] -= underlay.getHueMultiplier();
-							num[yi + BLEND]--;
-						}
-					}
-				}
-			}
+	private boolean[] getAdjacentRegionsPresence(int baseX, int baseY) {
+		boolean[] presence = new boolean[4];
+		presence[0] = regionLoader.findRegionForWorldCoordinates(baseX - 1, baseY) != null;
+		presence[1] = regionLoader.findRegionForWorldCoordinates(baseX + Region.X, baseY) != null;
+		presence[2] = regionLoader.findRegionForWorldCoordinates(baseX, baseY + Region.Y) != null;
+		presence[3] = regionLoader.findRegionForWorldCoordinates(baseX, baseY - 1) != null;
+		return presence;
+	}
 
-			if (xi >= 0 && xi < Region.X)
-			{
-				int runningHues = 0;
-				int runningSat = 0;
-				int runningLight = 0;
-				int runningMultiplier = 0;
-				int runningNumber = 0;
+	private int getStartX(boolean hasLeftRegion) {
+		return hasLeftRegion ? -BLEND * 2 : -BLEND;
+	}
 
-				for (int yi = (hasDownRegion ? -BLEND * 2 : -BLEND); yi < Region.Y + (hasUpRegion ? BLEND * 2 : BLEND); ++yi)
-				{
-					int yu = yi + BLEND;
-					if (yu >= (hasDownRegion ? -BLEND : 0) && yu < Region.Y + (hasUpRegion ? BLEND : 0))
-					{
-						runningHues += hues[yu + BLEND];
-						runningSat += sats[yu + BLEND];
-						runningLight += light[yu + BLEND];
-						runningMultiplier += mul[yu + BLEND];
-						runningNumber += num[yu + BLEND];
-					}
+	private int getEndX(boolean hasRightRegion) {
+		return Region.X + (hasRightRegion ? BLEND * 2 : BLEND);
+	}
 
-					int yd = yi - BLEND;
-					if (yd >= (hasDownRegion ? -BLEND : 0) && yd < Region.Y + (hasUpRegion ? BLEND : 0))
-					{
-						runningHues -= hues[yd + BLEND];
-						runningSat -= sats[yd + BLEND];
-						runningLight -= light[yd + BLEND];
-						runningMultiplier -= mul[yd + BLEND];
-						runningNumber -= num[yd + BLEND];
-					}
+	private void processRegionX(int[][] pixels, int baseX, int baseY, int z, int xi, boolean[] regionPresence, int[] hues, int[] sats, int[] light, int[] mul, int[] num) {
+		for (int yi = getStartY(regionPresence[3]); yi < getEndY(regionPresence[2]); ++yi) {
+			processRegionY(baseX, baseY, z, xi, yi, regionPresence, hues, sats, light, mul, num);
+		}
 
-					if (yi >= 0 && yi < Region.Y)
-					{
-						Region r = regionLoader.findRegionForWorldCoordinates(baseX + xi, baseY + yi);
-						if (r != null)
-						{
-							int underlayId = r.getUnderlayId(z, convert(xi), convert(yi));
-							int overlayId = r.getOverlayId(z, convert(xi), convert(yi));
+		if (xi >= 0 && xi < Region.X) {
+			updatePixels(pixels, baseX, baseY, z, xi, regionPresence, hues, sats, light, mul, num);
+		}
+	}
 
-							if (underlayId > 0 || overlayId > 0)
-							{
-								int underlayHsl = -1;
-								if (underlayId > 0)
-								{
-									int avgHue = runningHues * 256 / runningMultiplier;
-									int avgSat = runningSat / runningNumber;
-									int avgLight = runningLight / runningNumber;
-									// randomness is added to avgHue here
+	private int getStartY(boolean hasDownRegion) {
+		return hasDownRegion ? -BLEND : 0;
+	}
 
-									if (avgLight < 0)
-									{
-										avgLight = 0;
-									}
-									else if (avgLight > 255)
-									{
-										avgLight = 255;
-									}
+	private int getEndY(boolean hasUpRegion) {
+		return Region.Y + (hasUpRegion ? BLEND : 0);
+	}
 
-									underlayHsl = packHsl(avgHue, avgSat, avgLight);
-								}
+	private void processRegionY(int baseX, int baseY, int z, int xi, int yi, boolean[] regionPresence, int[] hues, int[] sats, int[] light, int[] mul, int[] num) {
+		int xr = xi + BLEND;
+		if (isWithinXBounds(xr, regionPresence[0], regionPresence[1])) {
+			updateArrays(baseX, baseY, z, xr, yi, hues, sats, light, mul, num, 1);
+		}
 
-								int underlayRgb = 0;
-								if (underlayHsl != -1)
-								{
-									int var0 = method1792(underlayHsl, 96);
-									underlayRgb = colorPalette[var0] | 0xFF000000;
-								}
+		int xl = xi - BLEND;
+		if (isWithinXBounds(xl, regionPresence[0], regionPresence[1])) {
+			updateArrays(baseX, baseY, z, xl, yi, hues, sats, light, mul, num, -1);
+		}
+	}
 
-								int shape, rotation;
-								int overlayRgb = 0;
-								if (overlayId == 0)
-								{
-									shape = rotation = 0;
-								}
-								else
-								{
-									shape = r.getOverlayPath(z, convert(xi), convert(yi)) + 1;
-									rotation = r.getOverlayRotation(z, convert(xi), convert(yi));
+	private boolean isWithinXBounds(int x, boolean hasLeftRegion, boolean hasRightRegion) {
+		return x >= (hasLeftRegion ? -BLEND : 0) && x < Region.X + (hasRightRegion ? BLEND : 0);
+	}
 
-									OverlayDefinition overlayDefinition = findOverlay(overlayId - 1);
-									int overlayTexture = overlayDefinition.getTexture();
-									int hsl;
-
-									if (overlayTexture >= 0)
-									{
-										hsl = rsTextureProvider.getAverageTextureRGB(overlayTexture);
-									}
-									else if (overlayDefinition.getRgbColor() == 0xFF_00FF)
-									{
-										hsl = -2;
-									}
-									else
-									{
-										// randomness added here
-										int overlayHsl = packHsl(overlayDefinition.getHue(), overlayDefinition.getSaturation(), overlayDefinition.getLightness());
-										hsl = overlayHsl;
-									}
-
-									if (hsl != -2)
-									{
-										int var0 = adjustHSLListness0(hsl, 96);
-										overlayRgb = colorPalette[var0] | 0xFF000000;
-									}
-
-									if (overlayDefinition.getSecondaryRgbColor() != -1)
-									{
-										int hue = overlayDefinition.getOtherHue();
-										int sat = overlayDefinition.getOtherSaturation();
-										int olight = overlayDefinition.getOtherLightness();
-										hsl = packHsl(hue, sat, olight);
-										int var0 = adjustHSLListness0(hsl, 96);
-										overlayRgb = colorPalette[var0] | 0xFF000000;
-									}
-								}
-
-								if (shape == 0)
-								{
-									int drawX = xi;
-									int drawY = Region.Y - 1 - yi;
-									if (underlayRgb != 0)
-									{
-										drawMapSquare(pixels, drawX, drawY, underlayRgb);
-									}
-								}
-								else if (shape == 1)
-								{
-									int drawX = xi;
-									int drawY = Region.Y - 1 - yi;
-									drawMapSquare(pixels, drawX, drawY, overlayRgb);
-								}
-								else
-								{
-									int drawX = xi * MAP_SCALE;
-									int drawY = (Region.Y - 1 - yi) * MAP_SCALE;
-									int[] tileShapes = TILE_SHAPE_2D[shape];
-									int[] tileRotations = TILE_ROTATION_2D[rotation];
-									if (underlayRgb != 0)
-									{
-										int rotIdx = 0;
-										for (int i = 0; i < Region.Z; ++i)
-										{
-											int p1 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
-											int p2 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
-											int p3 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
-											int p4 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
-											pixels[drawX + 0][drawY + i] = p1;
-											pixels[drawX + 1][drawY + i] = p2;
-											pixels[drawX + 2][drawY + i] = p3;
-											pixels[drawX + 3][drawY + i] = p4;
-										}
-									}
-									else
-									{
-										int rotIdx = 0;
-										for (int i = 0; i < Region.Z; ++i)
-										{
-											int p1 = tileShapes[tileRotations[rotIdx++]];
-											int p2 = tileShapes[tileRotations[rotIdx++]];
-											int p3 = tileShapes[tileRotations[rotIdx++]];
-											int p4 = tileShapes[tileRotations[rotIdx++]];
-
-											if (p1 != 0)
-											{
-												pixels[drawX + 0][drawY + i] = overlayRgb;
-											}
-
-											if (p2 != 0)
-											{
-												pixels[drawX + 1][drawY + i] = overlayRgb;
-											}
-
-											if (p3 != 0)
-											{
-												pixels[drawX + 2][drawY + i] = overlayRgb;
-											}
-
-											if (p4 != 0)
-											{
-												pixels[drawX + 3][drawY + i] = overlayRgb;
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
+	private void updateArrays(int baseX, int baseY, int z, int x, int y, int[] hues, int[] sats, int[] light, int[] mul, int[] num, int sign) {
+		Region r = regionLoader.findRegionForWorldCoordinates(baseX + x, baseY + y);
+		if (r != null) {
+			int underlayId = r.getUnderlayId(z, convert(x), convert(y));
+			if (underlayId > 0) {
+				UnderlayDefinition underlay = findUnderlay(underlayId - 1);
+				hues[y + BLEND] += sign * underlay.getHue();
+				sats[y + BLEND] += sign * underlay.getSaturation();
+				light[y + BLEND] += sign * underlay.getLightness();
+				mul[y + BLEND] += sign * underlay.getHueMultiplier();
+				num[y + BLEND] += sign;
 			}
 		}
 	}
+
+	private void updatePixels(int[][] pixels, int baseX, int baseY, int z, int xi, boolean[] regionPresence, int[] hues, int[] sats, int[] light, int[] mul, int[] num) {
+		int runningHues = 0, runningSat = 0, runningLight = 0, runningMultiplier = 0, runningNumber = 0;
+
+		for (int yi = getStartY(regionPresence[3]); yi < getEndY(regionPresence[2]); ++yi) {
+			int yu = yi + BLEND;
+			if (isWithinYBounds(yu, regionPresence[3], regionPresence[2])) {
+				runningHues += hues[yu + BLEND];
+				runningSat += sats[yu + BLEND];
+				runningLight += light[yu + BLEND];
+				runningMultiplier += mul[yu + BLEND];
+				runningNumber += num[yu + BLEND];
+			}
+
+			int yd = yi - BLEND;
+			if (isWithinYBounds(yd, regionPresence[3], regionPresence[2])) {
+				runningHues -= hues[yd + BLEND];
+				runningSat -= sats[yd + BLEND];
+				runningLight -= light[yd + BLEND];
+				runningMultiplier -= mul[yd + BLEND];
+				runningNumber -= num[yd + BLEND];
+			}
+
+			if (yi >= 0 && yi < Region.Y) {
+				drawPixel(pixels, baseX, baseY, z, xi, yi, runningHues, runningSat, runningLight, runningMultiplier, runningNumber);
+			}
+		}
+	}
+
+	private boolean isWithinYBounds(int y, boolean hasDownRegion, boolean hasUpRegion) {
+		return y >= (hasDownRegion ? -BLEND : 0) && y < Region.Y + (hasUpRegion ? BLEND : 0);
+	}
+
+	private void drawPixel(int[][] pixels, int baseX, int baseY, int z, int xi, int yi, int runningHues, int runningSat, int runningLight, int runningMultiplier, int runningNumber) {
+		Region r = regionLoader.findRegionForWorldCoordinates(baseX + xi, baseY + yi);
+		if (r != null) {
+			int underlayId = r.getUnderlayId(z, convert(xi), convert(yi));
+			int overlayId = r.getOverlayId(z, convert(xi), convert(yi));
+
+			if (underlayId > 0 || overlayId > 0) {
+				int underlayRgb = calculateUnderlayRgb(runningHues, runningSat, runningLight, runningMultiplier, runningNumber, underlayId);
+				int overlayRgb = calculateOverlayRgb(r, z, xi, yi, overlayId);
+
+				drawShape(pixels, xi, yi, underlayRgb, overlayRgb, r, z);
+			}
+		}
+	}
+
+	private int calculateUnderlayRgb(int runningHues, int runningSat, int runningLight, int runningMultiplier, int runningNumber, int underlayId) {
+		if (underlayId > 0) {
+			int avgHue = runningHues * 256 / runningMultiplier;
+			int avgSat = runningSat / runningNumber;
+			int avgLight = Math.max(0, Math.min(255, runningLight / runningNumber));
+			int underlayHsl = packHsl(avgHue, avgSat, avgLight);
+			return colorPalette[method1792(underlayHsl, 96)] | 0xFF000000;
+		}
+		return 0;
+	}
+
+	private int calculateOverlayRgb(Region r, int z, int xi, int yi, int overlayId) {
+		if (overlayId == 0) return 0;
+
+		OverlayDefinition overlayDefinition = findOverlay(overlayId - 1);
+		int overlayRgb = calculateOverlayColor(overlayDefinition);
+		if (overlayDefinition.getSecondaryRgbColor() != -1) {
+			int hsl = packHsl(overlayDefinition.getOtherHue(), overlayDefinition.getOtherSaturation(), overlayDefinition.getOtherLightness());
+			overlayRgb = colorPalette[adjustHSLListness0(hsl, 96)] | 0xFF000000;
+		}
+		return overlayRgb;
+	}
+
+	private int calculateOverlayColor(OverlayDefinition overlayDefinition) {
+		int overlayTexture = overlayDefinition.getTexture();
+		if (overlayTexture >= 0) {
+			return rsTextureProvider.getAverageTextureRGB(overlayTexture);
+		} else if (overlayDefinition.getRgbColor() == 0xFF_00FF) {
+			return -2;
+		} else {
+			int overlayHsl = packHsl(overlayDefinition.getHue(), overlayDefinition.getSaturation(), overlayDefinition.getLightness());
+			return colorPalette[adjustHSLListness0(overlayHsl, 96)] | 0xFF000000;
+		}
+	}
+
+	private void drawShape(int[][] pixels, int xi, int yi, int underlayRgb, int overlayRgb, Region r, int z) {
+		int shape = r.getOverlayPath(z, convert(xi), convert(yi)) + 1;
+		int rotation = r.getOverlayRotation(z, convert(xi), convert(yi));
+
+		if (shape == 0) {
+			drawMapSquare(pixels, xi, Region.Y - 1 - yi, underlayRgb);
+		} else if (shape == 1) {
+			drawMapSquare(pixels, xi, Region.Y - 1 - yi, overlayRgb);
+		} else {
+			drawComplexShape(pixels, xi, yi, underlayRgb, overlayRgb, shape, rotation);
+		}
+	}
+
+	private void drawComplexShape(int[][] pixels, int xi, int yi, int underlayRgb, int overlayRgb, int shape, int rotation) {
+		int drawX = xi * MAP_SCALE;
+		int drawY = (Region.Y - 1 - yi) * MAP_SCALE;
+		int[] tileShapes = TILE_SHAPE_2D[shape];
+		int[] tileRotations = TILE_ROTATION_2D[rotation];
+		int rotIdx = 0;
+
+		for (int i = 0; i < Region.Z; ++i) {
+			int p1 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
+			int p2 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
+			int p3 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
+			int p4 = tileShapes[tileRotations[rotIdx++]] == 0 ? underlayRgb : overlayRgb;
+			pixels[drawX + 0][drawY + i] = p1;
+			pixels[drawX + 1][drawY + i] = p2;
+			pixels[drawX + 2][drawY + i] = p3;
+			pixels[drawX + 3][drawY + i] = p4;
+		}
+	}
+
 
 	private static int convert(int d)
 	{
