@@ -33,7 +33,7 @@ import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
 
 @Getter
 @ToString(onlyExplicitlyIncluded = true)
-class FarmingPatch
+public class FarmingPatch
 {
 	@Setter(AccessLevel.PACKAGE)
 	@ToString.Include
