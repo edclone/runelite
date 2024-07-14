@@ -303,7 +303,9 @@ public class MapImageDumper
 
 		return image;
 	}
-
+	/*
+	Not the drawMap I refactored.
+	 */
 	private void drawMap(BufferedImage image, int drawBaseX, int drawBaseY, int z, Region region)
 	{
 		if (!renderMap)
