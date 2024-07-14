@@ -38,7 +38,7 @@ public class RuneLiteProperties
 	private static final String RUNELITE_DIRTY = "runelite.dirty";
 	private static final String DISCORD_INVITE = "runelite.discord.invite";
 	private static final String LAUNCHER_VERSION_PROPERTY = "runelite.launcher.version";
-	private static final String INSECURE_SKIP_TLS_VERIFICATION_PROPERTY = "runelite.insecure-skip-tls-verification";
+	private static final String INSC_SKP_TLS_VERIF_PROP = "runelite.insecure-skip-tls-verification";
 	private static final String TROUBLESHOOTING_LINK = "runelite.wiki.troubleshooting.link";
 	private static final String BUILDING_LINK = "runelite.wiki.building.link";
 	private static final String DNS_CHANGE_LINK = "runelite.dnschange.link";
@@ -92,7 +92,8 @@ public class RuneLiteProperties
 
 	public static boolean isInsecureSkipTlsVerification()
 	{
-		return Boolean.getBoolean(INSECURE_SKIP_TLS_VERIFICATION_PROPERTY);
+		return Boolean.getBoolean(INSC_SKP_TLS_VERIF_PROP);
+
 	}
 
 	public static String getTroubleshootingLink()
