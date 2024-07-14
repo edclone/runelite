@@ -27,6 +27,7 @@ public class ChatBoxInputManager {
     private final KeyManager keyManager;
     private final MouseManager mouseManager;
     private final ChatboxPanelManager chatboxPanelManager;
+    private final ClientHelper clientHelper;
 
     public ChatBoxInputManager(Client client, ClientThread clientThread, EventBus eventBus,
                                KeyManager keyManager, MouseManager mouseManager,
@@ -37,6 +38,7 @@ public class ChatBoxInputManager {
         this.keyManager = keyManager;
         this.mouseManager = mouseManager;
         this.chatboxPanelManager = chatboxPanelManager;
+        this.clientHelper = new ClientHelper(client);
     }
 
     public void close() {
@@ -118,9 +120,7 @@ public class ChatBoxInputManager {
     private Widget getContainerWidget() {
         return client.getWidget(ComponentID.CHATBOX_CONTAINER);
     }
-
     public boolean shouldTakeInput() {
-        Widget worldMapSearch = client.getWidget(ComponentID.WORLD_MAP_SEARCH);
-        return worldMapSearch == null || client.getVarcIntValue(VarClientInt.WORLD_MAP_SEARCH_FOCUSED) != 1;
+        return clientHelper.shouldTakeInput();
     }
 }
